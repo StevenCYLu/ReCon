@@ -1,0 +1,48 @@
+# Core dependencies for RECON demo
+# Compatible with diffusers 0.21.0
+
+# PyTorch (install with appropriate CUDA version)
+torch>=2.0.0,<2.1.0
+torchvision>=0.15.0,<0.16.0
+torchaudio>=2.0.0,<2.1.0
+
+# HuggingFace ecosystem
+diffusers==0.21.0
+transformers==4.33.2
+accelerate==0.21.0
+safetensors==0.3.3
+datasets==2.14.4
+
+# Image processing
+Pillow>=10.0.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# Optional: FAISS for similarity search
+# Choose one based on your hardware:
+faiss-cpu>=1.7.4  # For CPU-only
+# faiss-gpu>=1.7.4  # For GPU (comment out faiss-cpu if using this)
+
+# Optional: spaCy for NLP processing
+spacy>=3.6.0
+
+# Utilities
+tqdm>=4.66.0
+requests>=2.31.0
+packaging>=23.1
+
+# Development/visualization (optional)
+jupyter>=1.0.0
+matplotlib>=3.7.0
+scipy>=1.11.0
+
+# Installation notes:
+# 1. For GPU support, install PyTorch with CUDA:
+#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# 
+# 2. For spaCy model:
+#    python -m spacy download en_core_web_trf
+#
+# 3. For GPU FAISS:
+#    pip uninstall faiss-cpu
+#    pip install faiss-gpu
