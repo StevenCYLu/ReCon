@@ -76,7 +76,9 @@ recon-demo/
 ├── requirements.txt         # Pip requirements
 └── README.md               # This file
 ```
+## Precomputed Concepts
 
+https://purdue0-my.sharepoint.com/:f:/r/personal/lu842_purdue_edu/Documents/ReCON?csf=1&web=1&e=GahuZG
 
 ## Citation
 
