@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from PIL import Image
 from transformers import CLIPTextModel, CLIPTokenizer
-from diffusers import DDIMScheduler, DDPMScheduler
+from diffusers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, EulerAncestralDiscreteScheduler
 
 try:
     import faiss
@@ -81,16 +81,23 @@ class ReconGenerator:
         self.default_negative_prompt = "anime, vector art, art, painting, illustration, ugly, abstract, black and white"
         self.default_seed = 1337
         
-    def load_models(self, load_clip: bool = True, load_spacy: bool = True):
+    SCHEDULER_MAP = {
+        "ddim": DDIMScheduler,
+        "euler": EulerDiscreteScheduler,
+        "euler_a": EulerAncestralDiscreteScheduler,
+    }
+
+    def load_models(self, load_clip: bool = True, load_spacy: bool = True, scheduler_type: str = "ddim"):
         """
         Load all required models.
-        
+
         Args:
             load_clip: Whether to load CLIP models for embedding
             load_spacy: Whether to load spaCy for NLP processing
+            scheduler_type: Scheduler to use ("ddim", "euler", "euler_a")
         """
         print(f"Loading models on device: {self.device}")
-        
+
         # Load SDXL pipeline
         print("Loading Stable Diffusion XL pipeline...")
         self.pipeline = ReconStableDiffusionXLPipeline.from_pretrained(
@@ -99,8 +106,10 @@ class ReconGenerator:
             cache_dir=self.cache_dir,
             use_safetensors=self.use_safetensors
         )
-        scheduler = DDIMScheduler.from_config(self.pipeline.scheduler.config)
+        scheduler_cls = self.SCHEDULER_MAP.get(scheduler_type, DDIMScheduler)
+        scheduler = scheduler_cls.from_config(self.pipeline.scheduler.config)
         self.pipeline.scheduler = scheduler
+        print(f"Using scheduler: {scheduler_cls.__name__}")
         
         self.pipeline.to(self.device)
         

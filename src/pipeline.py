@@ -373,8 +373,15 @@ class ReconStableDiffusionXLPipeline(DiffusionPipeline, FromSingleFileMixin, Lor
                 "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."
             )
 
-    def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, device, generator, latents=None):
-        """Prepare initial latents for generation."""
+    def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, device, generator, latents=None, is_intermediate=False):
+        """Prepare initial latents for generation.
+
+        Args:
+            is_intermediate: If True, latents are pre-cached intermediate states
+                from a previous generation (e.g., ReCon cached latents). These
+                should NOT be scaled by init_noise_sigma since they are already
+                at the correct noise level for their target timestep.
+        """
         shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
@@ -384,11 +391,16 @@ class ReconStableDiffusionXLPipeline(DiffusionPipeline, FromSingleFileMixin, Lor
 
         if latents is None:
             latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+            # scale the initial noise by the standard deviation required by the scheduler
+            latents = latents * self.scheduler.init_noise_sigma
         else:
             latents = latents.to(device)
+            if not is_intermediate:
+                # Only scale provided latents if they are raw noise, not cached intermediates.
+                # For Euler-family schedulers, init_noise_sigma >> 1 and would destroy
+                # pre-cached latents that are already at the correct noise level.
+                latents = latents * self.scheduler.init_noise_sigma
 
-        # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
         return latents
 
     def _get_add_time_ids(self, original_size, crops_coords_top_left, target_size, dtype):
@@ -571,6 +583,11 @@ class ReconStableDiffusionXLPipeline(DiffusionPipeline, FromSingleFileMixin, Lor
 
         # 5. Prepare latent variables
         num_channels_latents = self.unet.config.in_channels
+        # When start_ratio > 0 and latents are provided, they are pre-cached
+        # intermediate states from ReCon concept generation. These must not be
+        # scaled by init_noise_sigma (critical for Euler-family schedulers where
+        # init_noise_sigma >> 1).
+        is_intermediate = latents is not None and start_ratio > 0
         latents = self.prepare_latents(
             batch_size * num_images_per_prompt,
             num_channels_latents,
@@ -580,6 +597,7 @@ class ReconStableDiffusionXLPipeline(DiffusionPipeline, FromSingleFileMixin, Lor
             device,
             generator,
             latents,
+            is_intermediate=is_intermediate,
         )
 
         # 6. Prepare extra step kwargs
@@ -674,8 +692,8 @@ class ReconStableDiffusionXLPipeline(DiffusionPipeline, FromSingleFileMixin, Lor
             needs_upcasting = self.vae.dtype == torch.float16 and self.vae.config.force_upcast
 
             if needs_upcasting:
-                self.upcast_vae()
-                latents = latents.to(next(iter(self.vae.post_quant_conv.parameters())).dtype)
+                self.vae.to(dtype=torch.float32)
+                latents = latents.to(torch.float32)
 
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]
 
