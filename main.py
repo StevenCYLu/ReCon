@@ -26,11 +26,12 @@ def run_demo(
     output_dir: str = "./demo_output",
     use_faiss: bool = True,
     faiss_index_path: str = "faiss_index_concept_diffdb.index",
-    metadata_path: str = "metadata_dict_concept_diffdb.pkl"
+    metadata_path: str = "metadata_dict_concept_diffdb.pkl",
+    scheduler_type: str = "ddim"
 ):
     """
     Run the RECON demo.
-    
+
     Args:
         prompt: Custom prompt to use
         cache_dir: Directory to cache models
@@ -38,16 +39,16 @@ def run_demo(
         use_faiss: Whether to attempt FAISS loading
         faiss_index_path: Path to FAISS index file
         metadata_path: Path to metadata file
+        scheduler_type: Scheduler to use ("ddim", "euler", "euler_a")
     """
     print("=== RECON Demo ===")
     print()
-    
+
     # Initialize generator
     generator = ReconGenerator(cache_dir=cache_dir)
-    
+
     # Load models
-    # try:
-    generator.load_models(load_clip=True, load_spacy=True)
+    generator.load_models(load_clip=True, load_spacy=True, scheduler_type=scheduler_type)
     
     
     # Try to load FAISS index if available
@@ -157,6 +158,14 @@ Examples:
     )
     
     parser.add_argument(
+        "--scheduler",
+        type=str,
+        default="ddim",
+        choices=["ddim", "euler", "euler_a"],
+        help="Scheduler to use (default: ddim)"
+    )
+
+    parser.add_argument(
         "--check-deps",
         action="store_true",
         help="Check if all dependencies are installed"
@@ -180,7 +189,8 @@ Examples:
             output_dir=args.output_dir,
             use_faiss=not args.no_faiss,
             faiss_index_path=args.faiss_index,
-            metadata_path=args.metadata
+            metadata_path=args.metadata,
+            scheduler_type=args.scheduler
         )
         return
 
